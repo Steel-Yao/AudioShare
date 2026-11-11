@@ -181,8 +181,6 @@ class TitleBar extends StatelessWidget implements PreferredSizeWidget {
 
 /// Starts a native window drag on pan.
 ///
-/// The package's DragToMoveArea also toggles maximize on double-click; the
-/// window is fixed size, so this widget offers the drag alone.
 class WindowDragArea extends StatelessWidget {
   const WindowDragArea({super.key, required this.child});
 
@@ -194,6 +192,13 @@ class WindowDragArea extends StatelessWidget {
       behavior: HitTestBehavior.translucent,
       onPanStart: (_) {
         unawaited(windowManager.startDragging());
+      },
+      onDoubleTap: () async {
+        if (await windowManager.isMaximized()) {
+          await windowManager.unmaximize();
+        } else {
+          await windowManager.maximize();
+        }
       },
       child: child,
     );
@@ -280,9 +285,7 @@ class _TitleIconButtonState extends State<TitleIconButton> {
   }
 }
 
-/// Minimize / close, mirroring the native caption buttons' hover and
-/// pressed states. The maximize toggle lives only on the title bar's
-/// double-click (DragToMoveArea), so there is no dedicated button for it.
+/// Standard caption controls with native-style hover and pressed states.
 class CaptionButtons extends StatelessWidget {
   const CaptionButtons({super.key});
 
@@ -297,6 +300,17 @@ class CaptionButtons extends StatelessWidget {
           icon: Icons.remove_rounded,
           onPressed: () {
             unawaited(windowManager.minimize());
+          },
+        ),
+        CaptionButton(
+          tooltip: l10n.winMaximize,
+          icon: Icons.crop_square,
+          onPressed: () async {
+            if (await windowManager.isMaximized()) {
+              await windowManager.unmaximize();
+            } else {
+              await windowManager.maximize();
+            }
           },
         ),
         CaptionButton(

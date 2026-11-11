@@ -14,15 +14,23 @@
   "deviceAndroidVersion": "Android {version} (API {apiLevel})",
   "@deviceAndroidVersion": {
     "placeholders": {
-      "version": {"type": "String"},
-      "apiLevel": {"type": "String"}
+      "version": {
+        "type": "String"
+      },
+      "apiLevel": {
+        "type": "String"
+      }
     }
   },
   "deviceNetworkAddress": " - {ip}:{port}",
   "@deviceNetworkAddress": {
     "placeholders": {
-      "ip": {"type": "String"},
-      "port": {"type": "String"}
+      "ip": {
+        "type": "String"
+      },
+      "port": {
+        "type": "String"
+      }
     }
   },
   "recordingPermissionTitle": "مطلوب إذن التسجيل",
@@ -38,7 +46,9 @@
   "nativeErrorDetails": "رمز الخطأ: {code}",
   "@nativeErrorDetails": {
     "placeholders": {
-      "code": {"type": "String"}
+      "code": {
+        "type": "String"
+      }
     }
   },
   "nativeError1000": "فشلت تهيئة التقاط الصوت.",
@@ -63,9 +73,77 @@
   "exceptionDetails": "التشخيص: {message}",
   "@exceptionDetails": {
     "placeholders": {
-      "message": {"type": "String"}
+      "message": {
+        "type": "String"
+      }
     }
   },
   "winMinimize": "تصغير",
-  "winClose": "إغلاق"
+  "winClose": "إغلاق",
+  "devicesTab": "Devices",
+  "audioSettingsTab": "Audio",
+  "monitorTab": "Monitor",
+  "audioSource": "Audio source",
+  "systemOutput": "System output",
+  "recordingInput": "Recording input",
+  "inputDevice": "Capture device",
+  "defaultDevice": "Follow system default",
+  "unavailableDevice": "Saved device unavailable",
+  "refreshDevices": "Refresh devices",
+  "audioFormat": "Stream format",
+  "pcm16Format": "PCM 16-bit",
+  "float32Format": "Float 32-bit",
+  "latencyProfile": "Buffer profile",
+  "lowLatencyProfile": "Low latency",
+  "balancedProfile": "Balanced",
+  "stableProfile": "Stable",
+  "customProfile": "Custom",
+  "playbackBuffer": "Playback buffer target",
+  "preRoll": "Startup prefill",
+  "captureQueue": "Capture queue limit",
+  "receiveChunk": "Receive block",
+  "requestLowLatency": "Request low latency output",
+  "settingsLocked": "Disconnect to change audio settings",
+  "settingsSaved": "Settings apply on the next connection",
+  "resetSettings": "Reset audio settings",
+  "activeFormat": "Active format",
+  "waitingForAudio": "Waiting for audio",
+  "monitoringOffline": "Connect a device to start monitoring",
+  "feedbackStale": "Playback feedback unavailable",
+  "channelLevels": "Channel levels",
+  "channelLeft": "Left",
+  "channelRight": "Right",
+  "transferRate": "Transfer rate",
+  "queueHistory": "Queued audio",
+  "captureQueueShort": "Capture",
+  "playbackQueueShort": "Playback estimate",
+  "captureTiming": "Capture interval",
+  "sendTiming": "Send time",
+  "underruns": "Playback underruns",
+  "droppedFrames": "Dropped frames",
+  "discontinuities": "Capture interruptions",
+  "effectiveBuffer": "Effective playback buffer",
+  "playbackRoute": "Playback route",
+  "performanceMode": "Output mode",
+  "modeLowLatency": "Low latency",
+  "modeStandard": "Standard",
+  "unknownValue": "Unavailable",
+  "clearHistory": "Clear chart history",
+  "pauseCharts": "Pause charts",
+  "resumeCharts": "Resume charts",
+  "recentHistory": "Recent 60 seconds",
+  "connectedStatus": "Streaming",
+  "disconnectedStatus": "Disconnected",
+  "connectionCancelled": "Cancel connection",
+  "queueEstimateNote": "Queue estimates exclude ADB, system output, and acoustic latency.",
+  "floatFormatNote": "Uncompressed stereo; system mixing and playback can still change samples.",
+  "queueDropNote": "When the capture queue fills, old audio is dropped to keep playback current.",
+  "macSystemOnly": "System audio capture",
+  "timeAxis": "Time (s)",
+  "msUnit": "ms",
+  "winMaximize": "Maximize",
+  "winRestore": "Restore",
+  "heldCharts": "Charts paused",
+  "sourceFormat": "Capture format",
+  "noSampleData": "No samples yet"
 }

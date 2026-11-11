@@ -14,15 +14,23 @@
   "deviceAndroidVersion": "Android {version}（API {apiLevel}）",
   "@deviceAndroidVersion": {
     "placeholders": {
-      "version": {"type": "String"},
-      "apiLevel": {"type": "String"}
+      "version": {
+        "type": "String"
+      },
+      "apiLevel": {
+        "type": "String"
+      }
     }
   },
   "deviceNetworkAddress": " - {ip}:{port}",
   "@deviceNetworkAddress": {
     "placeholders": {
-      "ip": {"type": "String"},
-      "port": {"type": "String"}
+      "ip": {
+        "type": "String"
+      },
+      "port": {
+        "type": "String"
+      }
     }
   },
   "recordingPermissionTitle": "需要录制权限",
@@ -38,7 +46,9 @@
   "nativeErrorDetails": "错误码：{code}",
   "@nativeErrorDetails": {
     "placeholders": {
-      "code": {"type": "String"}
+      "code": {
+        "type": "String"
+      }
     }
   },
   "nativeError1000": "系统音频捕获初始化失败。",
@@ -63,9 +73,77 @@
   "exceptionDetails": "诊断信息：{message}",
   "@exceptionDetails": {
     "placeholders": {
-      "message": {"type": "String"}
+      "message": {
+        "type": "String"
+      }
     }
   },
   "winMinimize": "最小化",
-  "winClose": "关闭"
+  "winClose": "关闭",
+  "devicesTab": "设备",
+  "audioSettingsTab": "音频设置",
+  "monitorTab": "实时监控",
+  "audioSource": "音频来源",
+  "systemOutput": "系统输出回环",
+  "recordingInput": "录音输入",
+  "inputDevice": "采集设备",
+  "defaultDevice": "跟随系统默认",
+  "unavailableDevice": "已保存的设备不可用",
+  "refreshDevices": "刷新设备",
+  "audioFormat": "传输格式",
+  "pcm16Format": "PCM 16 位",
+  "float32Format": "Float 32 位",
+  "latencyProfile": "缓冲档位",
+  "lowLatencyProfile": "低延迟",
+  "balancedProfile": "均衡",
+  "stableProfile": "稳定",
+  "customProfile": "自定义",
+  "playbackBuffer": "播放缓冲目标",
+  "preRoll": "启动预填充",
+  "captureQueue": "采集队列上限",
+  "receiveChunk": "接收数据块",
+  "requestLowLatency": "请求低延迟输出",
+  "settingsLocked": "断开连接后可修改音频设置",
+  "settingsSaved": "设置将在下次连接时生效",
+  "resetSettings": "重置音频设置",
+  "activeFormat": "实际传输格式",
+  "waitingForAudio": "等待音频",
+  "monitoringOffline": "连接设备后开始监控",
+  "feedbackStale": "播放反馈不可用",
+  "channelLevels": "声道电平",
+  "channelLeft": "左声道",
+  "channelRight": "右声道",
+  "transferRate": "传输速率",
+  "queueHistory": "音频排队时长",
+  "captureQueueShort": "采集队列",
+  "playbackQueueShort": "播放队列估计",
+  "captureTiming": "采集间隔",
+  "sendTiming": "发送耗时",
+  "underruns": "播放欠载次数",
+  "droppedFrames": "丢弃帧数",
+  "discontinuities": "采集中断次数",
+  "effectiveBuffer": "实际播放缓冲",
+  "playbackRoute": "播放设备",
+  "performanceMode": "输出模式",
+  "modeLowLatency": "低延迟",
+  "modeStandard": "标准",
+  "unknownValue": "不可用",
+  "clearHistory": "清空图表历史",
+  "pauseCharts": "暂停图表",
+  "resumeCharts": "继续图表",
+  "recentHistory": "最近 60 秒",
+  "connectedStatus": "传输中",
+  "disconnectedStatus": "未连接",
+  "connectionCancelled": "取消连接",
+  "queueEstimateNote": "队列估计不含 ADB、系统输出和声学延迟。",
+  "floatFormatNote": "未压缩立体声；系统混音和播放仍可能改变采样。",
+  "queueDropNote": "采集队列满时丢弃旧音频，以避免延迟持续累积。",
+  "macSystemOnly": "系统音频采集",
+  "timeAxis": "时间（秒）",
+  "msUnit": "毫秒",
+  "winMaximize": "最大化",
+  "winRestore": "还原",
+  "heldCharts": "图表已暂停",
+  "sourceFormat": "采集格式",
+  "noSampleData": "暂无采样数据"
 }

@@ -6,10 +6,10 @@ class MainFlutterWindow: NSWindow {
     let flutterViewController = FlutterViewController()
     self.contentViewController = flutterViewController
 
-    // Fixed size — matches Flutter UI: SizedBox(width:360, height:540) + checkbox row.
-    let contentSize = NSSize(width: 360, height: 560)
+    let contentSize = NSSize(width: 900, height: 720)
     self.setContentSize(contentSize)
-    self.styleMask.remove(.resizable)
+    self.styleMask.insert(.resizable)
+    self.contentMinSize = NSSize(width: 360, height: 520)
     self.center()
 
     RegisterGeneratedPlugins(registry: flutterViewController)

@@ -4,17 +4,14 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:window_manager/window_manager.dart';
 
-/// The app is a fixed-size panel: the window always stays at the design
-/// size — no resize edges, no maximize (see configureDesktopWindow, and
-/// MainFlutterWindow.swift on macOS). The interface scales automatically on
-/// displays where the physical pixel ratio is not 1.0.
-const Size kDesktopInitialWindowSize = Size(360, 540);
+const Size kDesktopInitialWindowSize = Size(900, 720);
+const Size kDesktopMinimumWindowSize = Size(360, 520);
 
 const double kTitleBarHeight = 44;
 const double kCaptionButtonWidth = 46;
 const double kCaptionButtonHeight = kTitleBarHeight;
 
-/// Prepares the handheld-sized desktop window before anything is drawn.
+/// Prepares the resizable desktop window before anything is drawn.
 ///
 /// Both runners show the window on Flutter's first frame, so applying the
 /// borderless options here — right before runApp — means the user never
@@ -25,10 +22,6 @@ const double kCaptionButtonHeight = kTitleBarHeight;
 /// the native traffic lights, inset as a leading empty zone in the caption
 /// row.
 ///
-/// The window is fixed size on both platforms: on macOS MainFlutterWindow
-/// .swift removes .resizable from the style mask (which also disables the
-/// zoom button); on Windows the styles are dropped below so the window
-/// cannot be stretched, snapped, or maximized.
 Future<void> configureDesktopWindow() async {
   if (!Platform.isWindows && !Platform.isLinux && !Platform.isMacOS) {
     return;
@@ -40,12 +33,16 @@ Future<void> configureDesktopWindow() async {
       TitleBarStyle.hidden,
       windowButtonVisibility: true,
     );
+    await windowManager.setMinimumSize(kDesktopMinimumWindowSize);
+    await windowManager.setResizable(true);
+    await windowManager.setMaximizable(true);
     return;
   }
 
   final windowOptions = WindowOptions(
     title: 'AudioShare',
     size: kDesktopInitialWindowSize,
+    minimumSize: kDesktopMinimumWindowSize,
     center: true,
     titleBarStyle: TitleBarStyle.hidden,
     windowButtonVisibility: Platform.isWindows ? false : null,
@@ -56,11 +53,9 @@ Future<void> configureDesktopWindow() async {
     // The runner shows the window after Flutter's first frame, so no show()
     // callback is needed — applying the options alone is enough.
     await windowManager.waitUntilReadyToShow(windowOptions);
-    // Fixed size: drop the resize frame and the maximize box so neither
-    // drag-resize nor window snapping (drag to edges, Win+arrow) can change
-    // the window's size. Minimize stays available.
-    await windowManager.setResizable(false);
-    await windowManager.setMaximizable(false);
+    await windowManager.setResizable(true);
+    await windowManager.setMaximizable(true);
+    await windowManager.setPreventClose(true);
     return;
   }
 

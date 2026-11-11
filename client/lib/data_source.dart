@@ -1,6 +1,11 @@
 import 'dart:async';
+import 'dart:convert';
 import 'dart:io';
+
 import 'package:flutter/foundation.dart';
+
+import 'models/audio_settings.dart';
+import 'models/audio_stats.dart';
 import 'models/device_model.dart';
 import 'services/adb_service.dart';
 import 'services/audio_capture.dart';
@@ -18,40 +23,102 @@ enum UiErrorType {
 }
 
 class UiError {
-  const UiError({
-    required this.type,
-    this.nativeError,
-    this.exception,
-  });
-
+  const UiError({required this.type, this.nativeError, this.exception});
   final UiErrorType type;
   final AudioCaptureError? nativeError;
   final Object? exception;
 }
 
 class DataSource extends ChangeNotifier {
-  final AdbService _adb = AdbService();
-  final AudioCaptureService _audioCapture = AudioCaptureService();
-
+  final AdbService _adb;
+  final AudioCaptureService _capture;
+  final Stopwatch _sessionClock = Stopwatch();
+  final List<AudioHistorySample> _history = [];
   List<DeviceModel> _devices = [];
-  final Map<String, int> _connectStateMap = {};
-  int _deviceState = 0; // 0=loading, 1=no devices, 2=has devices
+  List<AudioInputDevice> _inputDevices = [];
+  AudioSettings _settings = const AudioSettings();
+  CaptureSnapshot _captureStats = const CaptureSnapshot();
+  PlaybackSnapshot? _playbackStats;
+  String? _activeDeviceId;
+  String? _socketName;
+  int _state = 0;
+  int _deviceState = 0;
   bool _lastCheck = true;
   String _lastDeviceId = '';
   String _lastAutoDeviceId = '';
   UiError? _pendingError;
-  late final DateTime _startTime;
+  int _session = 0;
+  bool _disposed = false;
+  bool _polling = false;
+  int _missingDevicePolls = 0;
+  int _lastBytes = 0;
+  int _lastSampleMs = 0;
+  Timer? _pollTimer;
+  Timer? _statsTimer;
+  Timer? _connectTimeout;
+  final Set<Future<void>> _connectTasks = {};
+  final Set<Future<void>> _reverseRemovals = {};
 
-  void _setLastDeviceId(String id) {
-    _lastDeviceId = id;
-    Prefs.setString('lastDeviceId', id);
+  DataSource({
+    bool startPolling = true,
+    AdbService? adb,
+    AudioCaptureService? capture,
+  })  : _adb = adb ?? AdbService(),
+        _capture = capture ?? AudioCaptureService() {
+    Prefs.load();
+    _lastDeviceId = Prefs.getString('lastDeviceId');
+    _lastCheck = Prefs.getBool('lastCheck', defaultValue: true);
+    try {
+      final saved =
+          jsonDecode(Prefs.getString('audioSettings', defaultValue: '{}'));
+      if (saved is Map<String, dynamic>) {
+        _settings = AudioSettings.fromJson(saved);
+      }
+    } on FormatException {
+      _settings = const AudioSettings();
+    }
+    if (!Platform.isWindows) {
+      _settings =
+          _settings.copyWith(source: AudioSource.systemOutput, deviceId: '');
+    }
+    _adb.onStats = (snapshot) {
+      if (_disposed || _state == 0) return;
+      _playbackStats = snapshot;
+      if (_captureStats.running) {
+        _state = 2;
+        _connectTimeout?.cancel();
+      }
+    };
+    _adb.onServerExit = (message) {
+      if (_state != 0) {
+        _fail(UiError(type: UiErrorType.captureStopped, exception: message));
+      }
+    };
+    refreshAudioDevices();
+    if (startPolling) {
+      unawaited(_pollDevices());
+      _pollTimer =
+          Timer.periodic(const Duration(seconds: 3), (_) => _pollDevices());
+      _statsTimer = Timer.periodic(
+          const Duration(milliseconds: 500), (_) => _pollStats());
+    }
   }
 
-  Timer? _pollTimer;
-
-  List<DeviceModel> get devices => _devices;
+  List<DeviceModel> get devices => List.unmodifiable(_devices);
+  List<AudioInputDevice> get inputDevices => List.unmodifiable(_inputDevices);
+  AudioSettings get settings => _settings;
+  CaptureSnapshot get captureStats => _captureStats;
+  PlaybackSnapshot? get playbackStats => _playbackStats;
+  List<AudioHistorySample> get history => List.unmodifiable(_history);
   int get deviceState => _deviceState;
   bool get lastCheck => _lastCheck;
+  bool get hasSession => _state != 0;
+  bool get settingsEnabled => !hasSession;
+  int getConnectState(String deviceId) =>
+      deviceId == _activeDeviceId ? _state : 0;
+  bool getConnectEnable(String deviceId) =>
+      _state == 0 || _state == 2 || deviceId == _activeDeviceId;
+
   UiError? takePendingError() {
     final error = _pendingError;
     _pendingError = null;
@@ -59,270 +126,255 @@ class DataSource extends ChangeNotifier {
   }
 
   set lastCheck(bool value) {
-    if (value) {
-      // Checking: keep _lastDeviceId so next startup can auto-connect,
-      // but sync _lastAutoDeviceId so the current session poll doesn't fire.
-      _lastAutoDeviceId = _lastDeviceId;
-    } else {
-      // Unchecking: forget the last device entirely.
-      _lastAutoDeviceId = '';
-      _setLastDeviceId('');
-    }
     _lastCheck = value;
+    _lastAutoDeviceId = _lastDeviceId;
     Prefs.setBool('lastCheck', value);
-    notifyListeners();
+    _notify();
   }
 
-  DataSource() {
-    _startTime = DateTime.now();
-    Prefs.load();
-    _lastDeviceId = Prefs.getString('lastDeviceId');
-    _lastCheck = Prefs.getBool('lastCheck', defaultValue: true);
-
-    _pollDevices();
-    _pollTimer =
-        Timer.periodic(const Duration(seconds: 3), (_) => _pollDevices());
+  void updateSettings(AudioSettings value) {
+    if (!settingsEnabled || value == _settings) return;
+    final changedSource = value.source != _settings.source;
+    _settings = value;
+    Prefs.setString('audioSettings', jsonEncode(value.toJson()));
+    if (changedSource) refreshAudioDevices();
+    _notify();
   }
 
-  int getConnectState(String deviceId) => _connectStateMap[deviceId] ?? 0;
+  void refreshAudioDevices() {
+    _inputDevices = _capture.devices(_settings.source);
+    _notify();
+  }
 
-  bool getConnectEnable(String deviceId) {
-    for (final state in _connectStateMap.values) {
-      if (state == 1) return false;
-    }
-    final state = _connectStateMap[deviceId] ?? 0;
-    return state == 0 || state == 2;
+  void clearHistory() {
+    _history.clear();
+    _notify();
+  }
+
+  void _notify() {
+    if (!_disposed) notifyListeners();
   }
 
   Future<void> _pollDevices() async {
-    final devices = await _adb.devices();
-    _devices = devices;
-    if (devices.isEmpty) {
-      final elapsed = DateTime.now().difference(_startTime);
-      if (elapsed.inSeconds >= 2) {
-        _deviceState = 1;
+    if (_disposed || _polling) return;
+    _polling = true;
+    try {
+      final devices = await _adb.devices();
+      if (_disposed) return;
+      _devices = devices;
+      _deviceState = devices.isEmpty ? 1 : 2;
+      final activePresent =
+          devices.any((device) => device.deviceId == _activeDeviceId);
+      _missingDevicePolls =
+          hasSession && !activePresent ? _missingDevicePolls + 1 : 0;
+      if (_missingDevicePolls >= 2) {
+        _fail(const UiError(
+            type: UiErrorType.captureStopped,
+            exception: 'Android device disconnected'));
       }
-      _lastAutoDeviceId = '';
-      // Don't wipe an active/connecting session on a transient empty poll.
-      final hasActive = _connectStateMap.values.any((s) => s == 1 || s == 2);
-      if (!hasActive) _connectStateMap.clear();
-    } else {
-      _deviceState = 2;
-      final connectKeys = List<String>.from(_connectStateMap.keys);
-      for (final key in connectKeys) {
-        bool has = false;
-        for (final device in devices) {
-          if (device.deviceId == key) {
-            has = true;
-          }
-        }
-        if (!has) {
-          _connectStateMap[key] = 0;
-        }
+      final lastPresent =
+          devices.any((device) => device.deviceId == _lastDeviceId);
+      if (!lastPresent) _lastAutoDeviceId = '';
+      if (!hasSession &&
+          _lastCheck &&
+          lastPresent &&
+          _lastDeviceId.isNotEmpty &&
+          _lastAutoDeviceId != _lastDeviceId) {
+        connectDevice(_lastDeviceId);
       }
-      bool hasLast = false;
-      for (final device in devices) {
-        if (_lastDeviceId.isNotEmpty && device.deviceId == _lastDeviceId) {
-          hasLast = true;
-        }
-      }
-      if (hasLast) {
-        if (_lastCheck &&
-            _lastDeviceId.isNotEmpty &&
-            (_connectStateMap[_lastDeviceId] ?? 0) == 0 &&
-            _lastDeviceId != _lastAutoDeviceId) {
-          connectDevice(_lastDeviceId);
-        }
-      } else {
-        _lastAutoDeviceId = '';
-      }
+      _notify();
+    } finally {
+      _polling = false;
     }
-    _pollNativeCaptureError();
-    notifyListeners();
   }
 
-  bool _prepareAudioCapture({required bool userInitiated}) {
-    if (Platform.isMacOS && !_audioCapture.hasScreenCapturePermission) {
-      if (!userInitiated) return false;
-      if (!_audioCapture.requestScreenCapturePermission()) {
-        _reportNativeError(
-          UiErrorType.recordingPermissionRequired,
-          _audioCapture.takeLastError(
-            fallbackCode: 1002,
-            fallbackMessage: '',
-          ),
-        );
-        return false;
-      }
+  void _pollStats() {
+    if (!hasSession || _disposed) return;
+    final error = _capture.pollLastError();
+    if (error != null) {
+      _fail(UiError(type: UiErrorType.captureStopped, nativeError: error));
+      return;
     }
-
-    if (!_audioCapture.initialize()) {
-      _reportNativeError(
-        UiErrorType.captureInitializationFailed,
-        _audioCapture.takeLastError(
-          fallbackCode: 1000,
-          fallbackMessage: '',
-        ),
-      );
-      return false;
+    _captureStats = _capture.snapshot();
+    if (_captureStats.running && _playbackStats != null) {
+      _state = 2;
+      _connectTimeout?.cancel();
     }
-    return true;
+    final elapsedMs = _sessionClock.elapsedMilliseconds;
+    final interval = elapsedMs - _lastSampleMs;
+    final delta = _captureStats.sentBytes - _lastBytes;
+    final rate = interval > 0 && delta >= 0 ? delta * 8 / interval : 0.0;
+    if (_captureStats.running && _captureStats.sampleRate > 0) {
+      _history.add(AudioHistorySample(
+        elapsedSeconds: elapsedMs / 1000,
+        kilobitsPerSecond: rate,
+        capture: _captureStats,
+        playback: _playbackStats?.isFresh == true ? _playbackStats : null,
+      ));
+      if (_history.length > 120) _history.removeAt(0);
+    }
+    _lastBytes = _captureStats.sentBytes;
+    _lastSampleMs = elapsedMs;
+    _notify();
   }
 
-  void _reportNativeError(
-    UiErrorType type,
-    AudioCaptureError? error,
-  ) {
-    _pendingError = UiError(
-      type: type,
-      nativeError: error ?? const AudioCaptureError(-1, ''),
-    );
-    notifyListeners();
-  }
-
-  void _pollNativeCaptureError() {
-    final hasSession =
-        _connectStateMap.values.any((state) => state == 1 || state == 2);
-    if (!hasSession) return;
-    final error = _audioCapture.pollLastError();
-    if (error == null) return;
-
+  void _endSession() {
+    _session++;
+    _connectTimeout?.cancel();
     _adb.stopServer();
-    _audioCapture.stop();
-    for (final deviceId in _connectStateMap.keys.toList()) {
-      _connectStateMap[deviceId] = 0;
+    _capture.stop();
+    _captureStats = _capture.snapshot();
+    _playbackStats = null;
+    if (_activeDeviceId != null && _socketName != null) {
+      _removeReverse(_activeDeviceId!, _socketName!);
     }
-    _reportNativeError(UiErrorType.captureStopped, error);
+    _socketName = null;
+    _state = 0;
+    _activeDeviceId = null;
+    _sessionClock.stop();
   }
 
-  Future<int> _findAvailablePort() async {
-    for (int port = 11794; port < 11794 + 10000; port++) {
-      try {
-        // Bind to anyIPv4 (0.0.0.0) — same address the native TCP server uses,
-        // so the availability check is accurate and avoids false positives from
-        // loopback-vs-wildcard mismatches (e.g. leftover ADB reverse tunnels).
-        final server = await ServerSocket.bind(InternetAddress.anyIPv4, port);
-        await server.close();
-        return port;
-      } catch (_) {
-        continue;
-      }
-    }
-    return 0;
+  void _removeReverse(String deviceId, String name) {
+    late final Future<void> removal;
+    removal = _adb.removeReverse(deviceId, name).whenComplete(() {
+      _reverseRemovals.remove(removal);
+    });
+    _reverseRemovals.add(removal);
+    unawaited(removal);
+  }
+
+  void _fail(UiError error) {
+    _endSession();
+    _pendingError = error;
+    _notify();
+  }
+
+  Future<int> _findPort() async {
+    final socket = await ServerSocket.bind(InternetAddress.loopbackIPv4, 0);
+    final port = socket.port;
+    await socket.close();
+    return port;
   }
 
   void connectDevice(String deviceId, {bool userInitiated = false}) {
-    try {
-      _lastAutoDeviceId = deviceId;
-      if (!_prepareAudioCapture(userInitiated: userInitiated)) return;
-
-      _setLastDeviceId(deviceId);
-      // Stop existing connection and set state=1 atomically in a single
-      // notifyListeners so the button never flickers back to "连接" between
-      // the clear and the state-1 assignment.
-      _adb.stopServer();
-      _audioCapture.stop();
-      _connectStateMap.clear();
-      _connectStateMap[deviceId] = 1;
-      notifyListeners();
-
-      () async {
-        try {
-          // Clear any leftover reverse tunnels from previous sessions so their
-          // port reservations don't block our new binding.
-          await _adb.removeAllReverse(deviceId);
-          final port = await _findAvailablePort();
-          if (port == 0) {
-            _connectStateMap[deviceId] = 0;
-            _pendingError = const UiError(type: UiErrorType.noAvailablePort);
-            notifyListeners();
-            return;
-          }
-          final socketName = 'audioshare_$port';
-
-          final listenOk = _audioCapture.listenOnPort(port, (connectCode) {
-            final startOk = _audioCapture.start();
-            if (!startOk) {
-              _adb.stopServer();
-              _audioCapture.stop();
-              _connectStateMap[deviceId] = 0;
-              final error = _audioCapture.takeLastError(
-                fallbackCode: 1200,
-                fallbackMessage: '',
-              );
-              _reportNativeError(
-                error?.code == 1002
-                    ? UiErrorType.recordingPermissionRequired
-                    : UiErrorType.captureStartFailed,
-                error,
-              );
-              return;
-            }
-            _connectStateMap[deviceId] = 2;
-            notifyListeners();
-          });
-
-          if (!listenOk) {
-            _connectStateMap[deviceId] = 0;
-            _reportNativeError(
-              UiErrorType.listenerStartFailed,
-              _audioCapture.takeLastError(
-                fallbackCode: 1100,
-                fallbackMessage: '',
-              ),
-            );
-            return;
-          }
-
-          await _adb.reverse(deviceId, socketName, port.toString());
-          await _adb.pushServer(deviceId);
-          await _adb.launchServer(deviceId, socketName);
-        } catch (e, s) {
-          print('Connection error: $e\n$s');
-          // Match the cleanup used by _pollNativeCaptureError so a failed
-          // push/launch does not leave the local audio listener bound.
-          _adb.stopServer();
-          _audioCapture.stop();
-          _connectStateMap[deviceId] = 0;
-          _pendingError = UiError(
+    if (_disposed) return;
+    _endSession();
+    _lastAutoDeviceId = deviceId;
+    if (Platform.isMacOS && !_capture.hasScreenCapturePermission) {
+      if (!userInitiated) return;
+      if (!_capture.requestScreenCapturePermission()) {
+        _fail(UiError(
+            type: UiErrorType.recordingPermissionRequired,
+            nativeError: _capture.takeLastError(fallbackCode: 1002)));
+        return;
+      }
+    }
+    if (!_capture.initialize() || !_capture.configure(_settings)) {
+      _fail(UiError(
+          type: UiErrorType.captureInitializationFailed,
+          nativeError: _capture.takeLastError(fallbackCode: 1301)));
+      return;
+    }
+    _activeDeviceId = deviceId;
+    _state = 1;
+    _pendingError = null;
+    _history.clear();
+    _captureStats = const CaptureSnapshot();
+    _playbackStats = null;
+    _lastBytes = _lastSampleMs = 0;
+    _missingDevicePolls = 0;
+    _sessionClock
+      ..reset()
+      ..start();
+    final session = _session;
+    _connectTimeout = Timer(const Duration(seconds: 25), () {
+      if (_session == session && _state == 1) {
+        _fail(const UiError(
             type: UiErrorType.connectAndroidDeviceFailed,
-            exception: e,
-          );
-          notifyListeners();
+            exception: 'Connection timed out'));
+      }
+    });
+    _notify();
+    late final Future<void> task;
+    task = _connect(deviceId, session).whenComplete(() {
+      _connectTasks.remove(task);
+    });
+    _connectTasks.add(task);
+    unawaited(task);
+  }
+
+  Future<void> _connect(String deviceId, int session) async {
+    String? name;
+    try {
+      final port = await _findPort();
+      if (_disposed || session != _session) return;
+      name = 'audioshare_${port}_$session';
+      _socketName = name;
+      if (!_capture.listenOnPort(port, (code) {
+        if (_disposed || session != _session) return;
+        if (code != deviceId || !_capture.start()) {
+          _fail(UiError(
+              type: UiErrorType.captureStartFailed,
+              nativeError: _capture.takeLastError(fallbackCode: 1301)));
         }
-      }();
-    } catch (e, s) {
-      print('Connection error: $e\n$s');
-      _connectStateMap[deviceId] = 0;
-      _pendingError = UiError(
-        type: UiErrorType.connectDeviceFailed,
-        exception: e,
-      );
-      notifyListeners();
+      })) {
+        _fail(UiError(
+            type: UiErrorType.listenerStartFailed,
+            nativeError: _capture.takeLastError(fallbackCode: 1100)));
+        return;
+      }
+      await _adb.reverse(deviceId, name, port.toString());
+      if (_disposed || session != _session) {
+        return;
+      }
+      await _adb.pushServer(deviceId);
+      if (_disposed || session != _session) return;
+      await _adb.launchServer(deviceId, name, _settings);
+      if (_disposed || session != _session) return;
+      _lastDeviceId = deviceId;
+      Prefs.setString('lastDeviceId', deviceId);
+    } catch (error) {
+      if (!_disposed && session == _session) {
+        _fail(UiError(
+            type: UiErrorType.connectAndroidDeviceFailed, exception: error));
+      }
+    } finally {
+      // A cancelled adb command can have installed the tunnel before it exits.
+      if (name != null && (_disposed || session != _session)) {
+        _removeReverse(deviceId, name);
+      }
     }
   }
 
   void disconnectDevice(String deviceId) {
-    _adb.stopServer();
-    _audioCapture.stop();
-    _lastAutoDeviceId = '';
-    _setLastDeviceId('');
-    _connectStateMap[deviceId] = 0;
-    notifyListeners();
+    _lastAutoDeviceId = deviceId;
+    _endSession();
+    _notify();
   }
 
   void disconnectAllDevice() {
-    _adb.stopServer();
-    _audioCapture.stop();
-    _connectStateMap.clear();
-    notifyListeners();
+    _endSession();
+    _notify();
+  }
+
+  Future<void> shutdown() async {
+    final watch = Stopwatch()..start();
+    dispose();
+    // A connection may still be creating its reverse tunnel when close begins.
+    await Future.wait(_connectTasks);
+    await Future.wait(_reverseRemovals);
+    debugPrint(
+        'Audio session cleanup finished in ${watch.elapsedMilliseconds} ms');
   }
 
   @override
   void dispose() {
+    if (_disposed) return;
+    _disposed = true;
     _pollTimer?.cancel();
-    disconnectAllDevice();
-    _audioCapture.dispose();
+    _statsTimer?.cancel();
+    _endSession();
+    _capture.dispose();
     _adb.dispose();
     super.dispose();
   }

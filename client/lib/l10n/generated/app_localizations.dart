@@ -424,6 +424,402 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Close'**
   String get winClose;
+
+  /// No description provided for @devicesTab.
+  ///
+  /// In en, this message translates to:
+  /// **'Devices'**
+  String get devicesTab;
+
+  /// No description provided for @audioSettingsTab.
+  ///
+  /// In en, this message translates to:
+  /// **'Audio'**
+  String get audioSettingsTab;
+
+  /// No description provided for @monitorTab.
+  ///
+  /// In en, this message translates to:
+  /// **'Monitor'**
+  String get monitorTab;
+
+  /// No description provided for @audioSource.
+  ///
+  /// In en, this message translates to:
+  /// **'Audio source'**
+  String get audioSource;
+
+  /// No description provided for @systemOutput.
+  ///
+  /// In en, this message translates to:
+  /// **'System output'**
+  String get systemOutput;
+
+  /// No description provided for @recordingInput.
+  ///
+  /// In en, this message translates to:
+  /// **'Recording input'**
+  String get recordingInput;
+
+  /// No description provided for @inputDevice.
+  ///
+  /// In en, this message translates to:
+  /// **'Capture device'**
+  String get inputDevice;
+
+  /// No description provided for @defaultDevice.
+  ///
+  /// In en, this message translates to:
+  /// **'Follow system default'**
+  String get defaultDevice;
+
+  /// No description provided for @unavailableDevice.
+  ///
+  /// In en, this message translates to:
+  /// **'Saved device unavailable'**
+  String get unavailableDevice;
+
+  /// No description provided for @refreshDevices.
+  ///
+  /// In en, this message translates to:
+  /// **'Refresh devices'**
+  String get refreshDevices;
+
+  /// No description provided for @audioFormat.
+  ///
+  /// In en, this message translates to:
+  /// **'Stream format'**
+  String get audioFormat;
+
+  /// No description provided for @pcm16Format.
+  ///
+  /// In en, this message translates to:
+  /// **'PCM 16-bit'**
+  String get pcm16Format;
+
+  /// No description provided for @float32Format.
+  ///
+  /// In en, this message translates to:
+  /// **'Float 32-bit'**
+  String get float32Format;
+
+  /// No description provided for @latencyProfile.
+  ///
+  /// In en, this message translates to:
+  /// **'Buffer profile'**
+  String get latencyProfile;
+
+  /// No description provided for @lowLatencyProfile.
+  ///
+  /// In en, this message translates to:
+  /// **'Low latency'**
+  String get lowLatencyProfile;
+
+  /// No description provided for @balancedProfile.
+  ///
+  /// In en, this message translates to:
+  /// **'Balanced'**
+  String get balancedProfile;
+
+  /// No description provided for @stableProfile.
+  ///
+  /// In en, this message translates to:
+  /// **'Stable'**
+  String get stableProfile;
+
+  /// No description provided for @customProfile.
+  ///
+  /// In en, this message translates to:
+  /// **'Custom'**
+  String get customProfile;
+
+  /// No description provided for @playbackBuffer.
+  ///
+  /// In en, this message translates to:
+  /// **'Playback buffer target'**
+  String get playbackBuffer;
+
+  /// No description provided for @preRoll.
+  ///
+  /// In en, this message translates to:
+  /// **'Startup prefill'**
+  String get preRoll;
+
+  /// No description provided for @captureQueue.
+  ///
+  /// In en, this message translates to:
+  /// **'Capture queue limit'**
+  String get captureQueue;
+
+  /// No description provided for @receiveChunk.
+  ///
+  /// In en, this message translates to:
+  /// **'Receive block'**
+  String get receiveChunk;
+
+  /// No description provided for @requestLowLatency.
+  ///
+  /// In en, this message translates to:
+  /// **'Request low latency output'**
+  String get requestLowLatency;
+
+  /// No description provided for @settingsLocked.
+  ///
+  /// In en, this message translates to:
+  /// **'Disconnect to change audio settings'**
+  String get settingsLocked;
+
+  /// No description provided for @settingsSaved.
+  ///
+  /// In en, this message translates to:
+  /// **'Settings apply on the next connection'**
+  String get settingsSaved;
+
+  /// No description provided for @resetSettings.
+  ///
+  /// In en, this message translates to:
+  /// **'Reset audio settings'**
+  String get resetSettings;
+
+  /// No description provided for @activeFormat.
+  ///
+  /// In en, this message translates to:
+  /// **'Active format'**
+  String get activeFormat;
+
+  /// No description provided for @waitingForAudio.
+  ///
+  /// In en, this message translates to:
+  /// **'Waiting for audio'**
+  String get waitingForAudio;
+
+  /// No description provided for @monitoringOffline.
+  ///
+  /// In en, this message translates to:
+  /// **'Connect a device to start monitoring'**
+  String get monitoringOffline;
+
+  /// No description provided for @feedbackStale.
+  ///
+  /// In en, this message translates to:
+  /// **'Playback feedback unavailable'**
+  String get feedbackStale;
+
+  /// No description provided for @channelLevels.
+  ///
+  /// In en, this message translates to:
+  /// **'Channel levels'**
+  String get channelLevels;
+
+  /// No description provided for @channelLeft.
+  ///
+  /// In en, this message translates to:
+  /// **'Left'**
+  String get channelLeft;
+
+  /// No description provided for @channelRight.
+  ///
+  /// In en, this message translates to:
+  /// **'Right'**
+  String get channelRight;
+
+  /// No description provided for @transferRate.
+  ///
+  /// In en, this message translates to:
+  /// **'Transfer rate'**
+  String get transferRate;
+
+  /// No description provided for @queueHistory.
+  ///
+  /// In en, this message translates to:
+  /// **'Queued audio'**
+  String get queueHistory;
+
+  /// No description provided for @captureQueueShort.
+  ///
+  /// In en, this message translates to:
+  /// **'Capture'**
+  String get captureQueueShort;
+
+  /// No description provided for @playbackQueueShort.
+  ///
+  /// In en, this message translates to:
+  /// **'Playback estimate'**
+  String get playbackQueueShort;
+
+  /// No description provided for @captureTiming.
+  ///
+  /// In en, this message translates to:
+  /// **'Capture interval'**
+  String get captureTiming;
+
+  /// No description provided for @sendTiming.
+  ///
+  /// In en, this message translates to:
+  /// **'Send time'**
+  String get sendTiming;
+
+  /// No description provided for @underruns.
+  ///
+  /// In en, this message translates to:
+  /// **'Playback underruns'**
+  String get underruns;
+
+  /// No description provided for @droppedFrames.
+  ///
+  /// In en, this message translates to:
+  /// **'Dropped frames'**
+  String get droppedFrames;
+
+  /// No description provided for @discontinuities.
+  ///
+  /// In en, this message translates to:
+  /// **'Capture interruptions'**
+  String get discontinuities;
+
+  /// No description provided for @effectiveBuffer.
+  ///
+  /// In en, this message translates to:
+  /// **'Effective playback buffer'**
+  String get effectiveBuffer;
+
+  /// No description provided for @playbackRoute.
+  ///
+  /// In en, this message translates to:
+  /// **'Playback route'**
+  String get playbackRoute;
+
+  /// No description provided for @performanceMode.
+  ///
+  /// In en, this message translates to:
+  /// **'Output mode'**
+  String get performanceMode;
+
+  /// No description provided for @modeLowLatency.
+  ///
+  /// In en, this message translates to:
+  /// **'Low latency'**
+  String get modeLowLatency;
+
+  /// No description provided for @modeStandard.
+  ///
+  /// In en, this message translates to:
+  /// **'Standard'**
+  String get modeStandard;
+
+  /// No description provided for @unknownValue.
+  ///
+  /// In en, this message translates to:
+  /// **'Unavailable'**
+  String get unknownValue;
+
+  /// No description provided for @clearHistory.
+  ///
+  /// In en, this message translates to:
+  /// **'Clear chart history'**
+  String get clearHistory;
+
+  /// No description provided for @pauseCharts.
+  ///
+  /// In en, this message translates to:
+  /// **'Pause charts'**
+  String get pauseCharts;
+
+  /// No description provided for @resumeCharts.
+  ///
+  /// In en, this message translates to:
+  /// **'Resume charts'**
+  String get resumeCharts;
+
+  /// No description provided for @recentHistory.
+  ///
+  /// In en, this message translates to:
+  /// **'Recent 60 seconds'**
+  String get recentHistory;
+
+  /// No description provided for @connectedStatus.
+  ///
+  /// In en, this message translates to:
+  /// **'Streaming'**
+  String get connectedStatus;
+
+  /// No description provided for @disconnectedStatus.
+  ///
+  /// In en, this message translates to:
+  /// **'Disconnected'**
+  String get disconnectedStatus;
+
+  /// No description provided for @connectionCancelled.
+  ///
+  /// In en, this message translates to:
+  /// **'Cancel connection'**
+  String get connectionCancelled;
+
+  /// No description provided for @queueEstimateNote.
+  ///
+  /// In en, this message translates to:
+  /// **'Queue estimates exclude ADB, system output, and acoustic latency.'**
+  String get queueEstimateNote;
+
+  /// No description provided for @floatFormatNote.
+  ///
+  /// In en, this message translates to:
+  /// **'Uncompressed stereo; system mixing and playback can still change samples.'**
+  String get floatFormatNote;
+
+  /// No description provided for @queueDropNote.
+  ///
+  /// In en, this message translates to:
+  /// **'When the capture queue fills, old audio is dropped to keep playback current.'**
+  String get queueDropNote;
+
+  /// No description provided for @macSystemOnly.
+  ///
+  /// In en, this message translates to:
+  /// **'System audio capture'**
+  String get macSystemOnly;
+
+  /// No description provided for @timeAxis.
+  ///
+  /// In en, this message translates to:
+  /// **'Time (s)'**
+  String get timeAxis;
+
+  /// No description provided for @msUnit.
+  ///
+  /// In en, this message translates to:
+  /// **'ms'**
+  String get msUnit;
+
+  /// No description provided for @winMaximize.
+  ///
+  /// In en, this message translates to:
+  /// **'Maximize'**
+  String get winMaximize;
+
+  /// No description provided for @winRestore.
+  ///
+  /// In en, this message translates to:
+  /// **'Restore'**
+  String get winRestore;
+
+  /// No description provided for @heldCharts.
+  ///
+  /// In en, this message translates to:
+  /// **'Charts paused'**
+  String get heldCharts;
+
+  /// No description provided for @sourceFormat.
+  ///
+  /// In en, this message translates to:
+  /// **'Capture format'**
+  String get sourceFormat;
+
+  /// No description provided for @noSampleData.
+  ///
+  /// In en, this message translates to:
+  /// **'No samples yet'**
+  String get noSampleData;
 }
 
 class _AppLocalizationsDelegate

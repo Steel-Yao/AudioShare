@@ -4,6 +4,7 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart' show ScreenUtilInit;
+import 'package:window_manager/window_manager.dart';
 
 import 'data_source.dart';
 import 'l10n/app_localizations_extensions.dart';
@@ -14,6 +15,7 @@ import 'utils/prefs.dart';
 import 'utils/size.dart';
 import 'window/window_chrome.dart';
 import 'window/window_configuration.dart';
+import 'widgets/audio_dashboard.dart';
 
 const _languagePreferenceKey = 'locale';
 
@@ -28,7 +30,13 @@ void main() {
       // Apply the borderless window style before anything is drawn: the
       // runner shows the window on Flutter's first frame, so configuring it
       // any later would briefly flash the native title bar.
-      await configureDesktopWindow();
+      try {
+        await configureDesktopWindow();
+      } catch (error, stack) {
+        debugPrint('Desktop window initialization failed: $error\n$stack');
+        runApp(StartupFailureApp(error: error));
+        return;
+      }
 
       runApp(const ScreenUtilInit(
         designSize: designSize,
@@ -42,6 +50,42 @@ void main() {
   FlutterError.onError = (details) {
     FlutterError.presentError(details);
   };
+}
+
+class StartupFailureApp extends StatelessWidget {
+  const StartupFailureApp({super.key, required this.error});
+
+  final Object error;
+
+  @override
+  Widget build(BuildContext context) => MaterialApp(
+        title: 'AudioShare',
+        debugShowCheckedModeBanner: false,
+        home: Scaffold(
+          body: Center(
+            child: SingleChildScrollView(
+              padding: const EdgeInsets.all(24),
+              child: ConstrainedBox(
+                constraints: const BoxConstraints(maxWidth: 640),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text('AudioShare',
+                        style: TextStyle(
+                            fontSize: 24, fontWeight: FontWeight.w600)),
+                    const SizedBox(height: 16),
+                    const Text(
+                        'Desktop window initialization failed. Rebuild or reinstall the complete application bundle.'),
+                    const SizedBox(height: 16),
+                    SelectableText(error.toString()),
+                  ],
+                ),
+              ),
+            ),
+          ),
+        ),
+      );
 }
 
 class AudioShareApp extends StatefulWidget {
@@ -94,6 +138,15 @@ class _AudioShareAppState extends State<AudioShareApp> {
     return MaterialApp(
       title: 'AudioShare',
       debugShowCheckedModeBanner: false,
+      theme: ThemeData(
+        useMaterial3: true,
+        colorScheme: ColorScheme.fromSeed(seedColor: const Color(0xFF147D64)),
+        scaffoldBackgroundColor: const Color(0xFFFAFBFC),
+        cardTheme: const CardThemeData(
+          shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.all(Radius.circular(6))),
+        ),
+      ),
       locale: _language.locale,
       supportedLocales: supportedLocales,
       localizationsDelegates: const [
@@ -134,29 +187,45 @@ class AudioShareHomePage extends StatefulWidget {
 }
 
 class _AudioShareHomePageState extends State<AudioShareHomePage>
-    with WidgetsBindingObserver {
+    with WidgetsBindingObserver, WindowListener {
   late final DataSource _dataSource;
-  bool _dataSourceDisposed = false;
+  Future<void>? _dataSourceCleanup;
+  bool _closingWindow = false;
   bool _showingError = false;
 
   @override
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
+    if (Platform.isWindows) windowManager.addListener(this);
     _dataSource = DataSource();
     _dataSource.addListener(_onDataSourceChanged);
   }
 
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
-    if (state == AppLifecycleState.detached) _cleanupDataSource();
+    if (state == AppLifecycleState.detached) {
+      unawaited(_cleanupDataSource());
+    }
   }
 
-  void _cleanupDataSource() {
-    if (_dataSourceDisposed) return;
-    _dataSourceDisposed = true;
+  Future<void> _cleanupDataSource() {
+    if (_dataSourceCleanup != null) return _dataSourceCleanup!;
     _dataSource.removeListener(_onDataSourceChanged);
-    _dataSource.dispose();
+    return _dataSourceCleanup = _dataSource.shutdown();
+  }
+
+  @override
+  void onWindowClose() async {
+    if (_closingWindow) return;
+    _closingWindow = true;
+    try {
+      await _cleanupDataSource().timeout(const Duration(seconds: 5));
+    } catch (error, stack) {
+      debugPrint('Audio session cleanup failed: $error\n$stack');
+    } finally {
+      await windowManager.destroy();
+    }
   }
 
   void _onDataSourceChanged() {
@@ -184,7 +253,9 @@ class _AudioShareHomePageState extends State<AudioShareHomePage>
       if (error.type == UiErrorType.recordingPermissionRequired) {
         return '$description\n\n$nativeDetails';
       }
-      return nativeDetails;
+      return nativeError.message.isEmpty
+          ? nativeDetails
+          : '$nativeDetails\n\n${l10n.exceptionDetails(nativeError.message)}';
     }
     if (error.exception case final exception?) {
       return '$description\n\n${l10n.exceptionDetails(exception.toString())}';
@@ -246,7 +317,8 @@ class _AudioShareHomePageState extends State<AudioShareHomePage>
   @override
   void dispose() {
     WidgetsBinding.instance.removeObserver(this);
-    _cleanupDataSource();
+    if (Platform.isWindows) windowManager.removeListener(this);
+    unawaited(_cleanupDataSource());
     super.dispose();
   }
 
@@ -266,109 +338,11 @@ class _AudioShareHomePageState extends State<AudioShareHomePage>
 
   @override
   Widget build(BuildContext context) {
-    final l10n = AppLocalizations.of(context);
     return Scaffold(
       // The borderless window draws its own caption row (title, languages,
       // minimize/maximize/close) instead of the system AppBar.
       appBar: TitleBar(onLanguagePressed: _openLanguageDialog),
-      body: SizedBox(
-        width: designSize.width.w,
-        height: designSize.height.h,
-        child: Column(children: [
-          Expanded(child: _buildContent(l10n)),
-          _buildCheckBox(l10n)
-        ]),
-      ),
-    );
-  }
-
-  Widget _buildContent(AppLocalizations l10n) {
-    switch (_dataSource.deviceState) {
-      case 0:
-        return const Center(child: CircularProgressIndicator());
-      case 1:
-        return Center(child: Text(l10n.noDevices));
-      case 2:
-        return ListView.separated(
-          itemCount: _dataSource.devices.length,
-          separatorBuilder: (_, __) => Divider(height: 1.h),
-          itemBuilder: (context, index) {
-            final device = _dataSource.devices[index];
-            final connectState = _dataSource.getConnectState(device.deviceId);
-            final connectEnable = _dataSource.getConnectEnable(device.deviceId);
-            final apiLevel = int.tryParse(device.apiLevel) ?? 0;
-            final port = int.tryParse(device.port) ?? 0;
-            final connectionLabel = switch (connectState) {
-              0 => l10n.connect,
-              1 => l10n.connecting,
-              2 => l10n.disconnect,
-              _ => l10n.connect,
-            };
-            return SizedBox(
-              height: 60.h,
-              child: Row(children: [
-                Padding(
-                  padding: EdgeInsets.only(left: 10.w),
-                  child: Icon(device.usb ? Icons.usb : Icons.wifi, size: 24.w),
-                ),
-                Expanded(
-                  child: Padding(
-                    padding: EdgeInsets.symmetric(horizontal: 10.w),
-                    child: Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text('${device.manufacturer} ${device.model}',
-                            style: TextStyle(fontSize: 14.sp),
-                            overflow: TextOverflow.ellipsis),
-                        SizedBox(height: 6.h),
-                        Text(
-                          '${l10n.deviceAndroidVersionFormatted(device.androidVersion, apiLevel)}${device.usb ? '' : l10n.deviceNetworkAddressFormatted(device.ip, port)}',
-                          style: TextStyle(fontSize: 12.sp),
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-                Padding(
-                  padding: EdgeInsets.only(right: 10.w),
-                  child: ElevatedButton(
-                    onPressed: connectEnable
-                        ? () {
-                            if (connectState == 0) {
-                              _dataSource.connectDevice(device.deviceId,
-                                  userInitiated: true);
-                            } else if (connectState == 2) {
-                              _dataSource.disconnectDevice(device.deviceId);
-                            }
-                          }
-                        : null,
-                    child: Text(connectionLabel),
-                  ),
-                ),
-              ]),
-            );
-          },
-        );
-      default:
-        return const SizedBox.shrink();
-    }
-  }
-
-  Widget _buildCheckBox(AppLocalizations l10n) {
-    return Padding(
-      padding: EdgeInsets.only(left: 10.w, right: 10.w, bottom: 10.h),
-      child: Row(children: [
-        Checkbox(
-            value: _dataSource.lastCheck,
-            onChanged: (value) => _dataSource.lastCheck = value ?? false),
-        Expanded(
-            child: Text(
-          l10n.autoConnectLastDevice,
-          style: TextStyle(fontSize: 14.sp),
-        )),
-      ]),
+      body: AudioDashboard(source: _dataSource),
     );
   }
 }

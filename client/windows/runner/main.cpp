@@ -25,7 +25,7 @@ int APIENTRY wWinMain(_In_ HINSTANCE instance, _In_opt_ HINSTANCE prev,
   project.set_dart_entrypoint_arguments(std::move(command_line_arguments));
 
   FlutterWindow window(project);
-  Win32Window::Size size(360, 540);
+  Win32Window::Size size(900, 720);
 
   // Center on the primary monitor.
   int screenW = GetSystemMetrics(SM_CXSCREEN);
@@ -44,6 +44,8 @@ int APIENTRY wWinMain(_In_ HINSTANCE instance, _In_opt_ HINSTANCE prev,
     ::DispatchMessage(&msg);
   }
 
+  // Destroy Flutter and its COM-using plugins while the apartment is alive.
+  window.Destroy();
   ::CoUninitialize();
   return EXIT_SUCCESS;
 }

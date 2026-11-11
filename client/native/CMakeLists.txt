@@ -1,0 +1,12 @@
+cmake_minimum_required(VERSION 3.14)
+project(audioshare_audio_tests LANGUAGES CXX)
+
+enable_testing()
+add_executable(audio_pipeline_test audio_pipeline_test.cpp)
+target_compile_features(audio_pipeline_test PRIVATE cxx_std_17)
+if(MSVC)
+  target_compile_options(audio_pipeline_test PRIVATE /W4 /WX /UNDEBUG)
+else()
+  target_compile_options(audio_pipeline_test PRIVATE -Wall -Wextra -Werror -UNDEBUG)
+endif()
+add_test(NAME audio_pipeline COMMAND audio_pipeline_test)

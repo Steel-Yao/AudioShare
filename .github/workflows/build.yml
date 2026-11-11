@@ -39,6 +39,18 @@ jobs:
       - name: Build Android server
         run: .\gradlew.bat :server:assembleRelease --no-daemon
 
+      - name: Test audio framing and conversion
+        run: |
+          javac -d build/audio-tests server/src/main/java/com/ysbing/audioshare/Options.java server/src/main/java/com/ysbing/audioshare/PcmStream.java server/src/test/java/com/ysbing/audioshare/PcmStreamTest.java
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          java -cp build/audio-tests com.ysbing.audioshare.PcmStreamTest
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          cmake -S client/native -B build/native-tests
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          cmake --build build/native-tests --config Debug
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          ctest --test-dir build/native-tests -C Debug --output-on-failure
+
       - name: Prepare Flutter project
         working-directory: client
         run: |
@@ -100,6 +112,14 @@ jobs:
 
       - name: Build Android server
         run: ./gradlew :server:assembleRelease --no-daemon
+
+      - name: Test audio framing and conversion
+        run: |
+          javac -d build/audio-tests server/src/main/java/com/ysbing/audioshare/Options.java server/src/main/java/com/ysbing/audioshare/PcmStream.java server/src/test/java/com/ysbing/audioshare/PcmStreamTest.java
+          java -cp build/audio-tests com.ysbing.audioshare.PcmStreamTest
+          cmake -S client/native -B build/native-tests
+          cmake --build build/native-tests --config Debug
+          ctest --test-dir build/native-tests -C Debug --output-on-failure
 
       - name: Prepare Flutter project
         working-directory: client

@@ -6,7 +6,7 @@ AudioShare 通过 ADB 将 Windows 或 macOS 的系统音频传输到 Android 设
 
 ## 功能
 
-- Windows 使用 WASAPI loopback 捕获系统音频（48 kHz、立体声、PCM16）。
+- Windows 使用事件驱动 WASAPI 采集，可选择系统输出回环或录音输入设备。
 - macOS 使用 ScreenCaptureKit 捕获系统音频，需要 macOS 13 或更高版本。
 - 使用 ADB reverse tunnel 传输，支持 USB 与 ADB over Wi-Fi。
 - 可自动连接上一次使用的设备。

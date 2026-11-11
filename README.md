@@ -35,6 +35,9 @@ shows the mode Android actually grants.
 New audio controls are localized in English, Simplified Chinese and Traditional
 Chinese. Other existing languages currently use English for these new strings.
 
+See the [audio settings and monitoring guide (Simplified Chinese)](docs/audio-controls.zh-CN.md)
+for buffer profiles, metric definitions, troubleshooting, and local preview checks.
+
 ## Quick Start
 
 1. Download the package for your platform from [Releases](https://github.com/ysbing/AudioShare/releases) and extract it.
@@ -49,11 +52,22 @@ On first use on macOS, allow **Screen & System Audio Recording** when prompted. 
 | --- | --- | --- |
 | Windows | Windows 10/11 x64 and working ADB drivers | Flutter 3.x and Visual Studio 2022+ with the Desktop C++ workload |
 | macOS | macOS 13+ | Flutter 3.x and Xcode 14+ |
-| Android device | USB debugging enabled, or paired ADB over Wi-Fi | Android Studio or JDK, only when building the server |
+| Android device | Android 6.0+ (API 23), with USB debugging enabled or paired ADB over Wi-Fi | Android SDK and JDK 21, only when building the server |
 
 Use the language menu in the upper-right corner to change the language of the interface. The first entry follows the language the operating system reports. The app ships translations for English, Simplified Chinese, Traditional Chinese, Spanish, Portuguese, Russian, Japanese, Korean, German, French, Italian, Hindi, Arabic, Turkish, Vietnamese, Indonesian, Polish, Thai, Dutch, Swedish, Czech, Hebrew, Ukrainian, Romanian, Greek, Hungarian, Danish and Finnish. Enable the option at the bottom of the window to reconnect automatically on future launches.
 
 ## Build from Source
+
+Build the Android server from the repository root before building either desktop
+client. The task copies the result to `client/assets/server` so the native
+library, desktop client, and Android protocol stay in sync:
+
+```bash
+./gradlew :server:assembleRelease
+```
+
+On Windows, use `.\gradlew.bat :server:assembleRelease`. CI uses Flutter 3.47.6,
+JDK 21, and Android SDK platform 36. Prepare and check the Flutter client next:
 
 ```bash
 cd client
@@ -63,22 +77,27 @@ flutter analyze
 flutter test
 ```
 
-Build the Windows client:
+From the repository root, build the Windows client:
 
 ```powershell
 cd client
 flutter build windows --release
 ```
 
-Output: `client/build/windows/x64/runner/Release/audioshare.exe`. AudioShare loads `adb.exe`, `AdbWinApi.dll`, `AdbWinUsbApi.dll`, `audio_capture.dll`, and the `server` asset from that directory at runtime, so the whole `Release` directory has to be shipped; a package that only contains `audioshare.exe` stays stuck on "Connecting".
+Output: `client/build/windows/x64/runner/Release/audioshare.exe`. Ship the entire
+`Release` directory, including the Flutter engine, `data`, `audio_capture.dll`,
+`adb.exe`, `AdbWinApi.dll`, `AdbWinUsbApi.dll`, and `server`. Missing runtime files
+can prevent startup or connection. Quit any running copy before rebuilding it.
 
-Package the build output with `./tools/package_windows.ps1 [-Version <version>]`, which validates those files and writes `dist/audioshare-<version>-win.7z`:
+From the repository root, package the build output with
+`./tools/package_windows.ps1 [-Version <version>]`, which validates those files
+and writes `dist/audioshare-<version>-win.7z`:
 
 ```powershell
 ./tools/package_windows.ps1
 ```
 
-Build the macOS client:
+From the repository root, build the macOS client:
 
 ```bash
 cd client
@@ -87,21 +106,25 @@ flutter build macos --release
 
 Output: `client/build/macos/Build/Products/Release/AudioShare.app`
 
-Package the build output with `./tools/package_macos.sh [--version <version>]`, which validates those files, ad-hoc signs the bundle, and writes `dist/audioshare-<version>-macos.zip`:
+From the repository root, package the build output with
+`./tools/package_macos.sh [--version <version>]`, which validates those files,
+ad-hoc signs the bundle, and writes `dist/audioshare-<version>-macos.zip`:
 
 ```bash
 ./tools/package_macos.sh
 ```
 
-Build the Android server. The output is copied to `client/assets/server`:
-
-```bash
-./gradlew :server:assembleRelease
-```
+For MinGW preview builds and optional device verification, see the
+[local preview guide (Simplified Chinese)](docs/audio-controls.zh-CN.md#windows-本机预览).
 
 ## Continuous Integration
 
-[`.github/workflows/build.yml`](.github/workflows/build.yml) builds the Android server and both desktop clients on every push and pull request. Each run uploads `audioshare-<version>-win.7z` and `audioshare-<version>-macos.zip` as artifacts; pushing a `v*` tag also attaches both packages to the GitHub release.
+[`.github/workflows/build.yml`](.github/workflows/build.yml) runs for pushes to
+`main`, `v*` tags, pull requests, and manual dispatches. It builds the Android
+server, runs Java PCM, native audio pipeline, and Flutter checks, then builds
+both desktop clients. Successful runs upload `audioshare-<version>-win.7z` and
+`audioshare-<version>-macos.zip`; `v*` tag runs also attach both packages to the
+GitHub release.
 
 The macOS job runs without an Apple Developer certificate and ad-hoc signs the bundle, so its packages are not notarized.
 
